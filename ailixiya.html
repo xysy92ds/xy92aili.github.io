@@ -1,0 +1,658 @@
+html_code = '''<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>爱莉希雅 · 高级看板娘</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #ff88aa;
+            --secondary: #ff6b9d;
+            --accent: #d4a5ff;
+            --bg-dark: #0f0e1a;
+            --bg-mid: #1a1225;
+        }
+
+        body {
+            background: var(--bg-dark);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30"><circle cx="12" cy="12" r="10" fill="%23ff88aa" opacity="0.9"/><path d="M12 22 L6 30 L18 30 Z" fill="%23ff88aa" opacity="0.9"/></svg>') 12 12, auto;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ---- 背景层 ---- */
+        .bg-aurora {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(212, 165, 255, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(255, 136, 170, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(255, 107, 157, 0.05) 0%, transparent 50%);
+            animation: auroraBreath 8s ease-in-out infinite alternate;
+            z-index: 0;
+        }
+
+        @keyframes auroraBreath {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* ---- 背景樱花画布 ---- */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* ---- 角色容器 ---- */
+        .character-wrapper {
+            position: relative;
+            z-index: 10;
+            perspective: 1000px;
+            width: 500px;
+            height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            touch-action: none;
+        }
+
+        .character-wrapper img {
+            width: 100%;
+            height: auto;
+            max-height: 80vh;
+            object-fit: contain;
+            display: block;
+            pointer-events: auto;
+            filter: drop-shadow(0 20px 60px rgba(255, 120, 180, 0.25));
+            transition: filter 0.3s ease;
+            will-change: transform;
+            border-radius: 30px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ---- 光晕层 ---- */
+        .glow {
+            position: absolute;
+            top: -30%;
+            left: -30%;
+            width: 160%;
+            height: 160%;
+            pointer-events: none;
+            border-radius: 50%;
+            transition: none;
+            z-index: 5;
+            animation: glowPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1.2; }
+        }
+
+        /* ---- 对话气泡 ---- */
+        .bubble {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            background: rgba(255, 255, 255, 0.95);
+            color: #ff6b9d;
+            padding: 12px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 8px 30px rgba(255, 107, 157, 0.3);
+            z-index: 20;
+            pointer-events: none;
+            opacity: 0;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+        }
+
+        .bubble.show {
+            transform: translateX(-50%) scale(1);
+            opacity: 1;
+        }
+
+        .bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid rgba(255, 255, 255, 0.95);
+        }
+
+        /* ---- 爆裂特效画布 ---- */
+        #burstCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* ---- 入场提示 ---- */
+        .hint {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            letter-spacing: 1px;
+            z-index: 30;
+            animation: hintFade 4s ease-in-out forwards;
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        @keyframes hintFade {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* ---- 底部签名 ---- */
+        .credit {
+            position: fixed;
+            bottom: 20px;
+            right: 30px;
+            color: rgba(255, 255, 255, 0.15);
+            font-size: 12px;
+            letter-spacing: 2px;
+            z-index: 30;
+            font-weight: 300;
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .character-wrapper {
+                width: 90vw;
+                height: 50vh;
+            }
+            .bubble {
+                font-size: 12px;
+                padding: 10px 16px;
+            }
+        }
+
+        /* 减少动画偏好 */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-aurora"></div>
+    <canvas id="particleCanvas"></canvas>
+
+    <div class="character-wrapper" id="characterWrapper">
+        <div class="bubble" id="bubble">你好呀，舰长~</div>
+        <img src="aili.png" alt="爱莉希雅" id="ailiImg" draggable="false">
+        <div class="glow" id="glowLayer"></div>
+    </div>
+
+    <canvas id="burstCanvas"></canvas>
+
+    <div class="hint" id="hint">
+        🖱️ 移动鼠标让她注视你 · 点击互动 · 按住拖拽<br>
+        ⌨️ 双击背景 / 按空格键有惊喜
+    </div>
+    <div class="credit">✦ 爱莉希雅 · 专属看板 ✦</div>
+
+    <script>
+        // ============================================================
+        //  工具函数
+        // ============================================================
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+        // ============================================================
+        //  一、平滑惯性追踪 + 呼吸动画 + 拖拽
+        // ============================================================
+        const img = document.getElementById('ailiImg');
+        const wrapper = document.getElementById('characterWrapper');
+        const glow = document.getElementById('glowLayer');
+        const bubble = document.getElementById('bubble');
+
+        let currentRotX = 0, currentRotY = 0;
+        let targetRotX = 0, targetRotY = 0;
+        let currentGlowX = 50, currentGlowY = 50;
+        let idleTime = 0;
+        let breathOffset = 0;
+
+        // 拖拽状态
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0;
+        let dragOffsetX = 0, dragOffsetY = 0;
+        let dragVelocityX = 0, dragVelocityY = 0;
+        let wrapperX = 0, wrapperY = 0;
+
+        const quotes = [
+            "你好呀，舰长~",
+            "今天也要开开心心的哦！",
+            "嘿嘿，抓到你了~",
+            "粉色妖精小姐登场！",
+            "要一起喝杯茶吗？",
+            "你看起来有点累呢...",
+            "爱莉希雅，永远喜欢你~",
+            "再靠近一点嘛~",
+            "这是专门为你准备的哦！",
+            "舰长的手，好温暖呢~"
+        ];
+
+        const specialQuotes = [
+            "✨ 超级爆裂模式启动！",
+            "🌸 樱花飞舞吧！",
+            "💕 这是特别的爱哦！"
+        ];
+
+        function showBubble(text, duration = 2500) {
+            bubble.textContent = text;
+            bubble.classList.add('show');
+            clearTimeout(bubble._timer);
+            bubble._timer = setTimeout(() => bubble.classList.remove('show'), duration);
+        }
+
+        // 自动随机对话
+        setInterval(() => {
+            if (Math.random() > 0.6 && !bubble.classList.contains('show')) {
+                showBubble(quotes[Math.floor(Math.random() * quotes.length)]);
+            }
+        }, 8000);
+
+        // 鼠标/触摸追踪
+        function handleMove(x, y) {
+            if (isDragging) return;
+            const nx = x / window.innerWidth;
+            const ny = y / window.innerHeight;
+            targetRotY = (nx - 0.5) * 24;
+            targetRotX = (ny - 0.5) * -18;
+            currentGlowX = nx * 100;
+            currentGlowY = ny * 100;
+            idleTime = 0;
+        }
+
+        document.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+        document.addEventListener('touchmove', e => {
+            if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+
+        document.addEventListener('mouseleave', () => {
+            targetRotX = 0;
+            targetRotY = 0;
+        });
+
+        // 拖拽逻辑
+        img.addEventListener('mousedown', e => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            img.style.cursor = 'grabbing';
+            img.style.transition = 'none';
+        });
+
+        img.addEventListener('touchstart', e => {
+            isDragging = true;
+            dragStartX = e.touches[0].clientX;
+            dragStartY = e.touches[0].clientY;
+            img.style.transition = 'none';
+        }, { passive: true });
+
+        const endDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            img.style.cursor = '';
+            // 弹性回弹
+            img.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        };
+
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        document.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            dragOffsetX = e.clientX - dragStartX;
+            dragOffsetY = e.clientY - dragStartY;
+        });
+
+        document.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            dragOffsetX = e.touches[0].clientX - dragStartX;
+            dragOffsetY = e.touches[0].clientY - dragStartY;
+        }, { passive: true });
+
+        // 动画循环
+        function updateTracking() {
+            const ease = 0.08;
+
+            if (isDragging) {
+                // 拖拽时轻微倾斜
+                currentRotY = lerp(currentRotY, dragOffsetX * 0.05, 0.2);
+                currentRotX = lerp(currentRotX, dragOffsetY * -0.05, 0.2);
+                wrapperX = dragOffsetX;
+                wrapperY = dragOffsetY;
+            } else {
+                currentRotX += (targetRotX - currentRotX) * ease;
+                currentRotY += (targetRotY - currentRotY) * ease;
+                idleTime += 0.016;
+
+                // 呼吸动画（Idle 2秒后开始）
+                if (idleTime > 2) {
+                    breathOffset = Math.sin(idleTime * 2) * 8;
+                }
+
+                // 弹性回弹
+                wrapperX += (0 - wrapperX) * 0.1;
+                wrapperY += (0 - wrapperY) * 0.1;
+                dragOffsetX = 0;
+                dragOffsetY = 0;
+            }
+
+            // 分层变换：wrapper 负责位移，img 负责旋转和缩放
+            wrapper.style.transform = `translate(${wrapperX}px, ${wrapperY + breathOffset}px)`;
+
+            const scale = 1 + Math.abs(currentRotY) * 0.002;
+            img.style.transform = `
+                rotateX(${currentRotX}deg)
+                rotateY(${currentRotY}deg)
+                scale(${scale})
+            `;
+
+            // 光晕
+            glow.style.background = `
+                radial-gradient(circle at ${currentGlowX}% ${currentGlowY}%,
+                rgba(255, 180, 220, 0.25) 0%,
+                rgba(200, 150, 255, 0.08) 50%,
+                transparent 80%)
+            `;
+
+            requestAnimationFrame(updateTracking);
+        }
+        updateTracking();
+
+        // ============================================================
+        //  二、背景樱花粒子系统（Retina 支持 + 贝塞尔花瓣）
+        // ============================================================
+        class ParticleSystem {
+            constructor(canvasId, count) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.petals = [];
+                this.count = count;
+                this.dpr = window.devicePixelRatio || 1;
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.init();
+                this.draw();
+            }
+
+            resize() {
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width * this.dpr;
+                this.canvas.height = this.height * this.dpr;
+                this.canvas.style.width = this.width + 'px';
+                this.canvas.style.height = this.height + 'px';
+                this.ctx.scale(this.dpr, this.dpr);
+            }
+
+            init() {
+                for (let i = 0; i < this.count; i++) {
+                    this.petals.push(this.createPetal(true));
+                }
+            }
+
+            createPetal(randomY = false) {
+                return {
+                    x: Math.random() * this.width,
+                    y: randomY ? Math.random() * this.height : -30,
+                    size: 6 + Math.random() * 10,
+                    speedY: 0.5 + Math.random() * 1.0,
+                    speedX: -0.3 + Math.random() * 0.6,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 0.025,
+                    opacity: 0.3 + Math.random() * 0.5,
+                    swayPhase: Math.random() * Math.PI * 2,
+                    swaySpeed: 0.5 + Math.random() * 1.5,
+                    color: `hsla(${330 + Math.random() * 30}, 80%, ${70 + Math.random() * 15}%, ${0.3 + Math.random() * 0.5})`
+                };
+            }
+
+            drawPetal(ctx, p) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
+
+                // 贝塞尔曲线花瓣（更自然）
+                const r = p.size / 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -r);
+                ctx.bezierCurveTo(r * 0.5, -r * 0.5, r, 0, 0, r);
+                ctx.bezierCurveTo(-r, 0, -r * 0.5, -r * 0.5, 0, -r);
+                ctx.fill();
+
+                // 花蕊点缀
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                for (let p of this.petals) {
+                    p.y += p.speedY;
+                    p.x += p.speedX + Math.sin(p.y * 0.005 + p.swayPhase) * 0.4;
+                    p.rotation += p.rotSpeed;
+
+                    if (p.y > this.height + 50) {
+                        Object.assign(p, this.createPetal());
+                    }
+                    if (p.x < -50) p.x = this.width + 50;
+                    if (p.x > this.width + 50) p.x = -50;
+
+                    this.drawPetal(this.ctx, p);
+                }
+                requestAnimationFrame(() => this.draw());
+            }
+        }
+
+        const particleSystem = new ParticleSystem('particleCanvas', 80);
+
+        // ============================================================
+        //  三、点击爆裂特效（对象池 + Retina 支持）
+        // ============================================================
+        class BurstSystem {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.dpr = window.devicePixelRatio || 1;
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.draw();
+            }
+
+            resize() {
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width * this.dpr;
+                this.canvas.height = this.height * this.dpr;
+                this.canvas.style.width = this.width + 'px';
+                this.canvas.style.height = this.height + 'px';
+                this.ctx.scale(this.dpr, this.dpr);
+            }
+
+            createBurst(cx, cy, intensity = 1) {
+                const colors = ['#ff6b9d', '#ff2e7d', '#ffb3c6', '#ff85b3', '#ffc0cb', '#ffffff', '#d4a5ff', '#ff99cc'];
+                const count = Math.floor(50 * intensity);
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = (2 + Math.random() * 8) * intensity;
+                    const size = (8 + Math.random() * 18) * intensity;
+                    const isHeart = Math.random() > 0.35;
+                    this.particles.push({
+                        x: cx, y: cy,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 1,
+                        size, life: 1.0,
+                        decay: 0.005 + Math.random() * 0.01,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        type: isHeart ? 'heart' : 'star',
+                        rotation: Math.random() * 360,
+                        rotSpeed: (Math.random() - 0.5) * 0.15
+                    });
+                }
+            }
+
+            drawHeart(ctx, x, y, size, color, rotation, alpha) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                ctx.scale(size / 20, size / 20);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 15 * alpha;
+                ctx.beginPath();
+                ctx.moveTo(0, -5);
+                ctx.bezierCurveTo(-10, -15, -20, 0, 0, 10);
+                ctx.bezierCurveTo(20, 0, 10, -15, 0, -5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            drawStar(ctx, x, y, size, color, rotation, alpha) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10 * alpha;
+                const s = size / 2;
+                ctx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2 - Math.PI / 4;
+                    const dx = Math.cos(angle) * s;
+                    const dy = Math.sin(angle) * s;
+                    if (i === 0) ctx.moveTo(dx, dy);
+                    else ctx.lineTo(dx, dy);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.04;
+                    p.vx *= 0.98;
+                    p.vy *= 0.98;
+                    p.life -= p.decay;
+                    p.rotation += p.rotSpeed;
+
+                    if (p.life <= 0) {
+                        this.particles.splice(i, 1);
+                        continue;
+                    }
+
+                    const size = p.size * (0.4 + 0.6 * p.life);
+                    if (p.type === 'heart') {
+                        this.drawHeart(this.ctx, p.x, p.y, size, p.color, p.rotation, p.life);
+                    } else {
+                        this.drawStar(this.ctx, p.x, p.y, size * 0.7, p.color, p.rotation, p.life);
+                    }
+                }
+                requestAnimationFrame(() => this.draw());
+            }
+        }
+
+        const burstSystem = new BurstSystem('burstCanvas');
+
+        // 点击角色
+        img.addEventListener('click', (e) => {
+            if (isDragging) return;
+            const rect = img.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            burstSystem.createBurst(cx, cy);
+            showBubble(quotes[Math.floor(Math.random() * quotes.length)]);
+
+            // 轻微缩放反馈（与旋转分离，避免冲突）
+            img.style.transition = 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            const baseTransform = img.style.transform;
+            img.style.transform = baseTransform.replace(/scale\\([^)]+\\)/, 'scale(0.92)');
+            setTimeout(() => {
+                img.style.transition = '';
+            }, 150);
+        });
+
+        // 双击背景
+        document.addEventListener('dblclick', (e) => {
+            if (e.target.tagName !== 'IMG') {
+                burstSystem.createBurst(e.clientX, e.clientY, 1.5);
+            }
+        });
+
+        // 空格键超级爆裂
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                const rect = img.getBoundingClientRect();
+                burstSystem.createBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, 2);
+                showBubble(specialQuotes[Math.floor(Math.random() * specialQuotes.length)], 3000);
+            }
+        });
+
+        // 控制台彩蛋
+        console.log('%c🌸 爱莉希雅 · 高级看板已启动', 'font-size:22px; color:#ff88bb; font-weight:bold;');
+        console.log('%c操作指南：点击互动 | 按住拖拽 | 双击背景 | 空格键超级模式', 'font-size:13px; color:#aaddff;');
+    </script>
+</body>
+</html>'''
+
